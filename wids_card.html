@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WiDS Attendee Card Generator</title>
+
+<!-- html2canvas: converts the HTML card to a downloadable PNG -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&family=DM+Sans:wght@400;500&family=Montserrat:wght@400;600;700&family=Arimo:wght@400;700;800&display=swap" rel="stylesheet">
+
+<style>
+  /* ─── RESET ─────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ─── PAGE ──────────────────────────────────── */
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: #f5f7f9;
+    color: #1a1a1a;
+    padding: 2rem 1rem;
+    min-height: 100vh;
+  }
+  .container { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; font-weight: 500; color: #0099b5; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 0.95rem; color: #666; margin-bottom: 2rem; }
+
+  /* ─── FORM CARDS ────────────────────────────── */
+  .ui-card {
+    background: #fff;
+    border-radius: 14px;
+    border: 0.5px solid #e0e0e0;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .card-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #999;
+    margin-bottom: 1rem;
+  }
+
+  /* ─── UPLOAD ZONE ───────────────────────────── */
+  .upload-zone {
+    border: 1.5px dashed #c0d8e0;
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    background: #f0f9fc;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .upload-zone:hover { background: #e2f4f8; border-color: #0099b5; }
+  .upload-icon {
+    width: 36px; height: 36px;
+    margin: 0 auto 0.5rem;
+    background: #0099b5;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 18px;
+  }
+  .upload-label { font-size: 0.95rem; color: #444; }
+  .upload-hint { font-size: 0.8rem; color: #999; margin-top: 4px; }
+  .success-badge {
+    display: inline-block;
+    background: #e6f7f0; color: #2d7a52;
+    font-size: 0.78rem; padding: 3px 10px;
+    border-radius: 20px; margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* ─── FIELDS ────────────────────────────────── */
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .field-wrap { display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 0.8rem; font-weight: 500; color: #555; }
+  input[type="text"] {
+    padding: 9px 12px;
+    border: 0.5px solid #d0d0d0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: #fafafa;
+    color: #1a1a1a;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    width: 100%;
+  }
+  input[type="text"]:focus {
+    border-color: #0099b5;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(0,153,181,0.1);
+  }
+
+  /* ─── PREVIEW WRAPPER ─────────────────────────
+     The card is 1200x627 but shown at 50% scale on screen.
+     The outer wrapper is sized to the scaled dimensions
+     so the page layout stays intact.
+  ─────────────────────────────────────────────── */
+  .preview-outer {
+    width: 600px;
+    height: 600px;
+    overflow: hidden;
+    border-radius: 0px;
+    border: 0.5px solid #e0e0e0;
+    margin-bottom: 1rem;
+  }
+  .preview-scaler {
+    width: 1200px;
+    height: 1200px;
+    transform: scale(0.5);
+    transform-origin: top left;
+  }
+
+  .preview-hint { font-size: 0.78rem; color: #aaa; text-align: center; margin-bottom: 1rem; }
+
+  /* ─── DOWNLOAD BUTTON ───────────────────────── */
+  .btn-download {
+    display: block; width: 100%;
+    padding: 12px;
+    background: #0099b5; color: #fff;
+    border: none; border-radius: 10px;
+    font-size: 1rem; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .btn-download:hover { background: #007a91; }
+  .btn-download:active { transform: scale(0.98); }
+
+  /* ─── ATTENDEE CARD (1200x627) ─────────────── */
+  .attendee-card {
+      width: 1200px;
+      height: 1200px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 0px;
+      background: linear-gradient(90deg, #0cc0df 0%, #ffde59 100%);
+      font-family: 'League Spartan', sans-serif;
+      display: flex;
+      flex-direction: column;
+  }
+  /* Header */
+  .ac-header {
+      padding: 0;
+      flex-shrink: 0;
+      display: flex;
+      align-items: flex-start;
+  }
+  .ac-header img {
+      height: 272.8px;
+      width: 1004.4px;
+      object-fit: contain;
+      position: relative;
+      left: 19.4px;  /* ← X = 19.4px */
+      top: 0;        /* ← Y = 0 */
+  }
+
+  /* Attendee section */
+  .ac-attendee {
+      position: static;
+      flex: none;
+      padding: 0;
+      margin: 0;
+      min-height: 0;
+      max-height: none;
+  }
+  .ac-photo {
+      width: 501px;
+      height: 501px;
+      border-radius: 50%;
+      border: 8px solid #fff;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: #ccc;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 72px;
+      color: #aaa;
+      position: absolute;
+      left: 19.4px;    /* ← X */
+      top: 300.1px;    /* ← Y */
+      z-index: 2;
+  }
+  .ac-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+  .ac-info {
+      background: #30adcf;
+      border-radius: 0;
+      padding: 24px 32px 24px 120px;  /* ← increase left padding to push text right */
+      position: absolute;
+      left: 406.2px;
+      top: 374.7px;
+      width: 745.7px;
+      height: 335.5px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      text-align: center;  /* ← centres all text in the box */
+      gap: 6px;
+      box-sizing: border-box;
+      border: 8px solid #fff;
+  }
+  .ac-name      { font-size: 65px; font-weight: 610; color: #fde995; line-height: 1.15; }
+  .ac-role      { font-size: 40px; font-weight: 700; color: #000000; font-family: 'Arimo', sans-serif;}
+  .ac-divider   { width: 100%; height: 1px; background: rgba(255,255,255,0.35); margin: 4px 0; }
+  .ac-headlines { font-size: 27px; font-weight: 600; color: #000000; line-height: 1.6; font-family: 'Arimo', sans-serif;}
+
+  /* Event info */
+  .ac-event {
+      padding: 25px 40px 8px;
+      flex-shrink: 0;
+      position: absolute;
+      top: 837px;   /* ← Y from Canva */
+      left: 23.5px; /* ← X */
+  }
+  .ac-event-title {
+      font-size: 50px;
+      font-weight: 610;
+      color: #fde995;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.12);
+      margin-bottom: 4px;
+      /* remove top and left — position now set on parent */
+  }
+
+  .ac-event-meta {
+      font-size: 35px;
+      font-weight: 600;
+      color: #fff;
+      line-height: 1.6;
+      font-family: 'Montserrat', sans-serif;
+      /* remove top and left — position now set on parent */
+  }
+  /* Sponsor bar */
+  .ac-sponsors {
+      /* background: rgba(255,255,255,0.92); */
+      background: #ffffff;
+      padding: 10px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      position: absolute;
+      top: 1050px;    /* ← moved up to make room */
+      left: 0px;
+      height: 150px;  /* ← increased for more white space */
+      width: 1200px;
+  }
+  .ac-sponsors .sponsor-logo {
+      /* height: 100px;    ← adjust to taste */
+      height: auto;
+      width: auto;
+      object-fit: contain;
+  }
+  .ac-sponsors .sponsor-divider {
+    width: 1px; 
+    height: 100px;
+    background: #ddd;
+  }
+  .ac-sponsors .sponsor-name {
+    font-size: 16px; font-weight: 800;
+    color: #333; white-space: nowrap;
+    font-family: 'League Spartan', sans-serif;
+  }
+  .ac-sponsors .sponsor-name.accent { color: #e05a00; }
+  .ac-sponsors .sponsor-name.blue   { color: #003087; }
+  .ac-sponsors .sponsor-name.teal   { color: #00837a; }
+  .ac-sponsors .sponsor-name.green  { color: #2d7a2d; }
+
+  @media (max-width: 520px) { .field-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>WiDS Attendee Card Generator</h1>
+  <p class="subtitle">Upload your photo, fill in your details, and download your personalised attendee card.</p>
+
+  <!-- ─── STEP 1: PHOTO ──────────────────────── -->
+  <div class="ui-card">
+    <div class="card-title">1 — Your photo</div>
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('photoInput').click()">
+      <div class="upload-icon">+</div>
+      <div class="upload-label" id="uploadLabel">Click or drag to upload your photo</div>
+      <div class="upload-hint">JPG or PNG recommended</div>
+      <div class="upload-hint" style="margin-top:8px;">
+        💡 To use your LinkedIn photo — open
+        <a href="https://www.linkedin.com" target="_blank" style="color:#0099b5;">LinkedIn</a>,
+        click your profile photo, then right-click → Save Image As
+      </div>
+      <input type="file" id="photoInput" accept="image/*" style="display:none">
+    </div>
+    <div style="margin-top:10px; display:flex; flex-direction:column; gap:5px;">
+      <label for="inputPhotoUrl">Or paste a photo URL</label>
+      <input type="text" id="inputPhotoUrl" placeholder="https://..." oninput="onUrlInput()">
+    </div>
+  </div>
+
+  <!-- ─── STEP 2: DETAILS ────────────────────── -->
+  <div class="ui-card">
+    <div class="card-title">2 — Your details</div>
+    <div class="field-grid">
+      <div class="field-wrap">
+        <label for="inputRole">Your name</label>
+        <input type="text" id="inputRole" placeholder="e.g. Anna Müller" oninput="update()">
+      </div>
+      <div class="field-wrap">
+        <label for="inputH1">Anything else you'd like to share</label>
+        <input type="text" id="inputH1" placeholder="e.g. Data Scientist at Amazing AG" oninput="update()">
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 3: PREVIEW + DOWNLOAD ────────── -->
+  <div class="ui-card">
+    <div class="card-title">3 — Preview &amp; download</div>
+
+    <div class="preview-outer">
+      <div class="preview-scaler">
+
+        <!-- THE CARD — captured at full 1200x627 by html2canvas -->
+        <div class="attendee-card" id="attendee-card">
+
+          <div class="ac-header">
+            <img src="logos/WiDS_Logo_Transparent.png" alt="WiDS Zurich logo">
+          </div>
+
+          <div class="ac-attendee">
+            <div class="ac-photo" id="ac-photo">👤</div>
+            <div class="ac-info">
+              <!-- Hard-coded top line — not editable -->
+              <div class="ac-name">Let's connect at the Conference!</div>
+              <div class="ac-role" id="ac-role">Your Name</div>
+              <!-- <div class="ac-divider"></div> -->
+              <div class="ac-headlines" id="ac-headlines">Anything else you'd like to share</div>
+            </div>
+          </div>
+
+          <div class="ac-event">
+            <div class="ac-event-title">WiDS Annual Conference</div>
+            <div class="ac-event-meta">
+              📍&nbsp;&nbsp;&nbsp;Swiss Re, Centre for Global Dialogue, Ruschlikon<br>
+              📅 19.06.2026
+            </div>
+          </div>
+
+          <div class="ac-sponsors">
+            <img src="logos/QRT.png"      class="sponsor-logo" alt="QRT">
+            <div class="sponsor-divider"></div>
+            <img src="logos/AXA.png"      class="sponsor-logo" alt="AXA">
+            <div class="sponsor-divider"></div>
+            <img src="logos/Swiss_Re.png" class="sponsor-logo" alt="Swiss Re">
+            <div class="sponsor-divider"></div>
+            <img src="logos/Deloitte.png" class="sponsor-logo" alt="Deloitte">
+            <div class="sponsor-divider"></div>
+            <img src="logos/Migros.png"   class="sponsor-logo" alt="MIGROS">
+            <div class="sponsor-divider"></div>
+            <img src="logos/Finyon.png"   class="sponsor-logo" alt="FINYON">
+          </div>
+
+        </div><!-- /attendee-card -->
+      </div><!-- /preview-scaler -->
+    </div><!-- /preview-outer -->
+
+    <p class="preview-hint">Preview at 50% · downloaded file is 1200 × 1200 px PNG</p>
+    <button class="btn-download" onclick="downloadPNG()">Download PNG</button>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+  // ─── Photo upload ─────────────────────────────
+  document.getElementById('photoInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) readFile(file);
+  });
+
+  const dropZone = document.getElementById('dropZone');
+  dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.style.background = '#e2f4f8'; });
+  dropZone.addEventListener('dragleave', ()  => { dropZone.style.background = '#f0f9fc'; });
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.background = '#f0f9fc';
+    const file = e.dataTransfer.files[0];
+    if (file) readFile(file);
+  });
+
+  function readFile(file) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      cropToSquare(ev.target.result, croppedSrc => {
+        setPhoto(croppedSrc);
+        document.getElementById('uploadLabel').innerHTML =
+          '&#10003; ' + file.name + '<span class="success-badge">Uploaded</span>';
+        document.getElementById('inputPhotoUrl').value = '';
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function cropToSquare(src, callback) {
+    const img = new Image();
+    img.onload = () => {
+      const size = Math.min(img.width, img.height);
+      const sx = (img.width - size) / 2;
+      const sy = (img.height - size) * 0.25;  // ← 0.25 shifts crop down slightly
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, size, size);
+      callback(canvas.toDataURL('image/png'));
+    };
+    img.src = src;
+  }
+
+  function setPhoto(src) {
+    const wrap = document.getElementById('ac-photo');
+    wrap.innerHTML = src ? `<img src="${src}" alt="Attendee photo">` : '👤';
+  }
+
+  function onUrlInput() {
+    const url = document.getElementById('inputPhotoUrl').value.trim();
+    if (url) {
+      setPhoto(url);
+      document.getElementById('uploadLabel').innerHTML =
+        'Photo loaded from URL <span class="success-badge">Loaded</span>';
+    } else {
+      setPhoto(null);
+    }
+  }
+
+  // ─── Text updates ─────────────────────────────
+  function update() {
+    const role = document.getElementById('inputRole').value || 'Your Name';
+    const h1   = document.getElementById('inputH1').value   || 'Anything else you\'d like to share';
+
+    document.getElementById('ac-role').textContent    = role;
+    document.getElementById('ac-headlines').innerHTML = h1;
+  }
+
+  // ─── Download ─────────────────────────────────
+  function downloadPNG() {
+    const card = document.getElementById('attendee-card');
+    const scaler = document.querySelector('.preview-scaler');
+
+    // Temporarily remove the scale transform so html2canvas sees full size
+    scaler.style.transform = 'none';
+
+    html2canvas(card, {
+      scale: 1,
+      useCORS: true,
+      allowTaint: true,
+      width: 1200,
+      height: 1200,
+      logging: false
+    }).then(canvas => {
+      // Restore the scale transform for the preview
+      scaler.style.transform = 'scale(0.5)';
+
+      const link = document.createElement('a');
+      link.download = 'WiDS-Attendee-Card.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  }
+</script>
+</body>
+</html>
